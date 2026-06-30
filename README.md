@@ -130,8 +130,12 @@ graph TD
 ## Assets
 
 This project includes visual walkthroughs of the architecture and workflow in the `assets/` folder:
-*   **Workflow Diagram**: `assets/architecture_diagram.png` (Visualizing agent orchestration, MCP tools, and security nodes)
-*   **Cover Banner**: `assets/cover_page_banner.png` (Platform splash page)
+
+### Cover Page Banner
+![DecisionIQ Cover Page Banner](assets/cover_page_banner.png)
+
+### Workflow Diagram
+![DecisionIQ Agent Workflow Diagram](assets/architecture_diagram.png)
 
 ## Demo Script
 
