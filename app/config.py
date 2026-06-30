@@ -13,5 +13,6 @@ class AgentConfig:
     max_iterations: int = 3
     pii_redaction_enabled: bool = True
     injection_detection_enabled: bool = True
+    mock_mode: bool = os.getenv("MOCK_MODE", "True") == "True"
 
 config = AgentConfig()

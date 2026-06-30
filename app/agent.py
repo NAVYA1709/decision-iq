@@ -5,7 +5,8 @@ import json
 from typing import Any, AsyncGenerator
 from pydantic import BaseModel, Field
 
-from google.adk.agents import LlmAgent
+from google.adk.agents import LlmAgent, BaseAgent
+from google.adk.agents.invocation_context import InvocationContext
 from google.adk.workflow import Workflow, START, node, FunctionNode, Edge
 from google.adk.tools import AgentTool
 from google.adk.tools.mcp_tool import McpToolset
@@ -58,7 +59,7 @@ mcp_toolset = McpToolset(
 )
 
 # ==========================================
-# 3. Specialized LlmAgents & Orchestrator
+# 3. Specialized Agents & Orchestrator (Mock support for video recordings)
 # ==========================================
 
 def get_model():
@@ -67,58 +68,142 @@ def get_model():
         retry_options=types.HttpRetryOptions(attempts=3),
     )
 
-# Specialized sub-agent 1: Document Intelligence
-document_analyst = LlmAgent(
-    name="document_analyst",
-    model=get_model(),
-    instruction="""You are the Document Intelligence Agent.
-Your role is to read uploaded business documents, extract key facts, summarize contents, and identify key topics.
-Focus on fact-based summaries. Detail the findings clearly.
-Use the MCP tools list_workspace_documents and read_business_document to find and inspect files.""",
-    tools=[mcp_toolset],
-)
+if config.mock_mode:
+    class MockDocumentAnalyst(BaseAgent):
+        async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
+            reply = (
+                "Based on 'company_goals.txt', the second goal is: "
+                "**Expand market research outreach**. Other goals include improving "
+                "operating margins above 15% and keeping security checks active for all user queries."
+            )
+            yield Event(
+                output=reply,
+                content=types.Content(role="model", parts=[types.Part.from_text(text=reply)])
+            )
 
-# Specialized sub-agent 2: Risk Assessment
-risk_assessor = LlmAgent(
-    name="risk_assessor",
-    model=get_model(),
-    instruction="""You are the Risk Assessment Agent.
-Your role is to analyze document findings and data trends to identify potential business risks, operational issues, or compliance concerns.
-Assign a severity level (Low, Medium, High) to each risk.
-Use the MCP tool calculate_financial_metrics to compute business numbers and assess operational/financial health.""",
-    tools=[mcp_toolset],
-)
+    class MockRiskAssessor(BaseAgent):
+        async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
+            reply = (
+                "Financial Analysis for Q2:\n"
+                "- **Gross Profit**: $30,000.00 (Gross Margin: 60.0%)\n"
+                "- **Operating Income**: $18,000.00 (Operating Margin: 36.0%)\n"
+                "- **Financial Health**: Excellent (High Profitability)\n"
+                "- **Risks Identified**: COGS and OPEX are rising month-over-month. Operating margins are at risk if cost trends continue."
+            )
+            yield Event(
+                output=reply,
+                content=types.Content(role="model", parts=[types.Part.from_text(text=reply)])
+            )
 
-# Main Orchestrator Agent
-orchestrator = LlmAgent(
-    name="orchestrator",
-    model=get_model(),
-    instruction="""You are the orchestrator for DecisionIQ.
-Your task is to coordinate the specialized sub-agents to answer the user query: {user_query}.
-You must delegate tasks using your tools:
-- Call document_analyst to analyze documents and extract key facts.
-- Call risk_assessor to assess potential risks based on findings.
-Synthesize their responses into a final AnalysisPlan. Describe the findings, the identified risks, and the next steps clearly.""",
-    tools=[AgentTool(document_analyst), AgentTool(risk_assessor)],
-    output_key="orchestrator_output",  # Saves output to ctx.state['orchestrator_output']
-)
+    class MockOrchestrator(BaseAgent):
+        async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
+            reply = (
+                "### DecisionIQ Analysis Plan\n\n"
+                "**1. Executive Summary:** The business is in excellent financial health with an operating margin of 36.0% for April, but faces medium risk from rising monthly costs.\n\n"
+                "**2. Key Findings:**\n"
+                "- Goal 2 in `company_goals.txt` is: **'Expand market research outreach'**.\n"
+                "- April Gross Profit is **$30,000.00** (60.0% margin), and Operating Income is **$18,000.00** (36.0% margin).\n\n"
+                "**3. Detected Risks:** Operational costs (COGS & OPEX) are trending upward, which could impact the 15.0% margin target in June.\n\n"
+                "**4. Proposed Plan:** Proceed to draft the complete Executive Business Intelligence Report containing mitigations and recommendations."
+            )
+            yield Event(
+                output=reply,
+                content=types.Content(role="model", parts=[types.Part.from_text(text=reply)]),
+                state={"orchestrator_output": reply}
+            )
 
-# Executive Report Generator
-executive_report = LlmAgent(
-    name="executive_report",
-    model=get_model(),
-    instruction="""You are the Executive Report Agent.
-Your task is to compile the final executive-ready report in markdown.
-Use the structured analysis plan from the orchestrator: {orchestrator_output}.
-Create a highly professional, beautifully formatted business intelligence report with:
-- Title: DecisionIQ Business Intelligence Report
-- Executive Summary
-- Key Findings & Document Analytics
-- Risks and Mitigations (showing severity)
-- Actionable Recommendations & Next Steps
-Ensure it is written in a premium corporate tone without placeholders. Output raw markdown report content.""",
-    output_key="final_report",
-)
+    class MockExecutiveReport(BaseAgent):
+        async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
+            report = """# DecisionIQ Business Intelligence Report
+
+## 1. Executive Summary
+DecisionIQ has conducted a multi-agent analysis of the workspace files and Q2 financials. The company is currently profitable with a 36.0% operating margin in April, but faces operational headwinds due to rising costs. Strategic goals (specifically Goal 2: expanding market research) are aligned but require careful budget allocation.
+
+## 2. Document Findings & Analytics
+*   **Company Goals (`company_goals.txt`)**: 
+    1. Improve operating margins above 15.0%.
+    2. **Expand market research outreach** (Goal 2).
+    3. Maintain security check compliance.
+*   **Q2 Financials (`q2_financials.csv` - April)**:
+    *   **Revenue**: $50,000.00
+    *   **COGS**: $20,000.00 (Gross Margin: 60.0%)
+    *   **OPEX**: $12,000.00
+    *   **Operating Income**: $18,000.00 (Operating Margin: 36.0%)
+
+## 3. Risks & Mitigations
+*   **Risk**: Rising COGS and OPEX month-over-month (Severity: **Medium**).
+    *   *Mitigation*: Implement budget caps on non-essential operational expenses and audit supplier contracts.
+*   **Risk**: Market expansion costs (Severity: **Low**).
+    *   *Mitigation*: Phase the market research rollout quarterly to preserve cash flow.
+
+## 4. Recommendations & Next Steps
+1.  **Approve the Q2 Market Research budget** but limit initial spend to $5,000.00.
+2.  **Monitor June cost trends** to ensure operating margins remain above the 15.0% threshold.
+3.  **Deploy automated alerts** in DecisionIQ to flag whenever the monthly operating margin drops below 20.0%."""
+            yield Event(
+                output=report,
+                content=types.Content(role="model", parts=[types.Part.from_text(text=report)]),
+                state={"final_report": report}
+            )
+
+    document_analyst = MockDocumentAnalyst(name="document_analyst")
+    risk_assessor = MockRiskAssessor(name="risk_assessor")
+    orchestrator = MockOrchestrator(name="orchestrator")
+    executive_report = MockExecutiveReport(name="executive_report")
+
+else:
+    # Specialized sub-agent 1: Document Intelligence
+    document_analyst = LlmAgent(
+        name="document_analyst",
+        model=get_model(),
+        instruction="""You are the Document Intelligence Agent.
+    Your role is to read uploaded business documents, extract key facts, summarize contents, and identify key topics.
+    Focus on fact-based summaries. Detail the findings clearly.
+    Use the MCP tools list_workspace_documents and read_business_document to find and inspect files.""",
+        tools=[mcp_toolset],
+    )
+
+    # Specialized sub-agent 2: Risk Assessment
+    risk_assessor = LlmAgent(
+        name="risk_assessor",
+        model=get_model(),
+        instruction="""You are the Risk Assessment Agent.
+    Your role is to analyze document findings and data trends to identify potential business risks, operational issues, or compliance concerns.
+    Assign a severity level (Low, Medium, High) to each risk.
+    Use the MCP tool calculate_financial_metrics to compute business numbers and assess operational/financial health.""",
+        tools=[mcp_toolset],
+    )
+
+    # Main Orchestrator Agent
+    orchestrator = LlmAgent(
+        name="orchestrator",
+        model=get_model(),
+        instruction="""You are the orchestrator for DecisionIQ.
+    Your task is to coordinate the specialized sub-agents to answer the user query: {user_query}.
+    You must delegate tasks using your tools:
+    - Call document_analyst to analyze documents and extract key facts.
+    - Call risk_assessor to assess potential risks based on findings.
+    Synthesize their responses into a final AnalysisPlan. Describe the findings, the identified risks, and the next steps clearly.""",
+        tools=[AgentTool(document_analyst), AgentTool(risk_assessor)],
+        output_key="orchestrator_output",  # Saves output to ctx.state['orchestrator_output']
+    )
+
+    # Executive Report Generator
+    executive_report = LlmAgent(
+        name="executive_report",
+        model=get_model(),
+        instruction="""You are the Executive Report Agent.
+    Your task is to compile the final executive-ready report in markdown.
+    Use the structured analysis plan from the orchestrator: {orchestrator_output}.
+    Create a highly professional, beautifully formatted business intelligence report with:
+    - Title: DecisionIQ Business Intelligence Report
+    - Executive Summary
+    - Key Findings & Document Analytics
+    - Risks and Mitigations (showing severity)
+    - Actionable Recommendations & Next Steps
+    Ensure it is written in a premium corporate tone without placeholders. Output raw markdown report content.""",
+        output_key="final_report",
+    )
 
 # ==========================================
 # 4. Workflow Function Nodes
