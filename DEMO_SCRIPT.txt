@@ -1,0 +1,23 @@
+[0:00 — HOOK]
+Every week, business managers and startup founders waste hours reading operational spreadsheets, reports, and text files before they can make critical decisions. (pause) Today, I am excited to show you how DecisionIQ automates this entire process by coordinating specialized AI agents to securely analyze documents, flag risks, and build executive-ready reports.
+
+[0:20 — WHAT IT IS]
+DecisionIQ is an intelligent, secure business intelligence platform built using the Google Agent Development Kit. It belongs to the Agents for Business track, focusing on secure automation, compliance checking, and collaborative decision support.
+
+[0:40 — SHOW THE BANNER]
+(show assets/cover_page_banner.png) (pause)
+At a glance, DecisionIQ provides founders and business leads with a dashboard to upload files, query their business health, and receive polished, secure intelligence reports instantly.
+
+[1:00 — ARCHITECTURE]
+(show assets/architecture_diagram.png) (pause)
+Let's look at the underlying agent architecture. (pause) First, the user's query enters the Security Checkpoint node, which scrubs PII, blocks prompt injections, and restricts payroll access. (pause) Once cleared, it routes to the Orchestrator Agent. The Orchestrator acts as the brain, delegating tasks to two specialist sub-agents: the Document Analyst, which reads text and spreadsheets, and the Risk Assessor, which computes financial numbers. Both sub-agents leverage our custom MCP Server to list files, read documents, and run financial formulas safely. (pause) The Orchestrator then compiles a plan and passes it to the Human Review node, where the system pauses for human approval. (pause) Once the user says 'yes', the Executive Report Agent takes the approved plan and generates a complete, polished business report.
+
+[2:00 — LIVE DEMO]
+(switch to playground at localhost:18081) (pause)
+Let's see this in action. (pause) I'm going to enter a query asking the system to list the workspace files, extract goals from company_goals.txt, calculate Q2 financials from our financials CSV, and assess our business health. (pause) The Orchestrator plans the query, coordinates the sub-agents to read the files, and uses our MCP tools to perform the math. (pause) As you can see, the execution halts at the Human Review gate. It presents me with a draft plan detailing the findings and identified risks. (pause) I will type 'yes' in the playground chat to approve it. (pause) Now, the Executive Report Agent completes the run, producing this beautiful, highly formatted markdown report.
+
+[3:00 — SECURITY & MCP]
+Security is built into every step. If I try to query payroll files, the Security Checkpoint blocks it immediately, returning a safety warning. When entering an email, it is automatically redacted in the audit logs. All local operations use our FastMCP server, which securely calculates margins and reads files without path traversal risks.
+
+[3:30 — IMPACT / CLOSE]
+DecisionIQ changes how businesses interact with data—offering robust, compliant, and security-first decision tools. It saves crucial hours while keeping a human firmly in the loop. Thank you!
